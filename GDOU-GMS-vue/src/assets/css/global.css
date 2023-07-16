@@ -1,0 +1,29 @@
+.el-tabs--border-card {
+    box-shadow: none !important;
+    border-bottom:  none !important;  
+}
+.el-tabs--border-card>.el-tabs__content {
+    padding: 10px;
+}
+a {
+    color: #409EFF;
+    text-decoration: none;
+}
+.el-menu{
+    border-right:none;
+}
+.el-dialog{
+    border-radius: 7px;
+}
+.el-dialog__body {
+    padding: 30px 45px 10px 20px;
+}
+.el-page-header__left {
+    transition: color .3s;
+}
+.el-page-header__left:hover {
+    color: #409eff;
+}
+.el-dialog{
+    witdh: 630px;
+}

@@ -1,0 +1,214 @@
+<template>
+  <div>
+    <!-- 条件查询 -->
+    <el-form :inline="true">
+      <el-form-item>
+        <el-select v-model="searchForm.venueType" placeholder="请选择场地类型">
+          <el-option label="全部" value=""> </el-option>
+          <el-option
+            v-for="item in venueTypeList"
+            :key="item.venueTypeId"
+            :label="item.venueTypeName"
+            :value="item.venueTypeName"
+          >
+          </el-option>
+        </el-select>
+      </el-form-item>
+
+      <el-form-item>
+        <el-button @click="getOrderList">搜索</el-button>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="info" @click="resetSearch()">重置</el-button>
+      </el-form-item>
+    </el-form>
+    <!-- 数据展示表格 -->
+    <el-table
+      ref="multipleTable"
+      :data="tableData"
+      tooltip-effect="dark"
+      :max-height="670"
+      style="width: 100%"
+      border
+      stripe
+    >
+      <el-table-column prop="orderId" label="订单编号" width="130">
+      </el-table-column>
+      <el-table-column prop="orderType" label="预定类型"> </el-table-column>
+      <el-table-column prop="orderVenueType" label="场地类型">
+      </el-table-column>
+      <el-table-column prop="orderVenueId" label="场地编号"> </el-table-column>
+      <el-table-column prop="orderVenueName" label="场地名称" width="120">
+      </el-table-column>
+      <el-table-column prop="orderUserId" label="用户编号" width="130">
+      </el-table-column>
+      <el-table-column prop="orderUserName" label="预定人"> </el-table-column>
+      <el-table-column prop="orderPhone" label="联系电话" width="130">
+      </el-table-column>
+      <el-table-column prop="orderPrice" label="预定价格/元">
+        <template slot-scope="scope">
+          {{ scope.row.orderPrice.toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="orderDate" label="预定日期" width="120">
+        <template slot-scope="scope">
+          {{ scope.row.orderDate | dateFormat }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="orderSt" label="开始时间">
+        <template slot-scope="scope"> {{ scope.row.orderSt }}:00 </template>
+      </el-table-column>
+      <el-table-column prop="orderEd" label="结束时间">
+        <template slot-scope="scope"> {{ scope.row.orderEd }}:00 </template>
+      </el-table-column>
+
+      <el-table-column prop="orderMktime" label="下单时间" width="160">
+        <template slot-scope="scope">
+          {{ scope.row.orderMktime | dateFormat("yyyy-MM-dd HH:mm:ss") }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="orderState"
+        label="订单状态"
+        fixed="right"
+        width="100"
+      >
+        <template slot-scope="scope">
+          <el-tag
+            size="small"
+            :type="stateMap[scope.row.orderState].type"
+            v-if="stateMap[scope.row.orderState]"
+          >
+            {{ stateMap[scope.row.orderState].text }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="orderId" width="120" label="操作" fixed="right">
+        <template slot-scope="scope">
+          <el-popconfirm
+            title="确定通过申请吗？"
+            @confirm="passOrder(scope.row.orderId)"
+          >
+            <el-button
+              slot="reference"
+              :disabled="
+                !(hasAuth('venue:miss:handle') && scope.row.orderState == 4)
+              "
+              >失约处理</el-button
+            >
+          </el-popconfirm>
+        </template>
+      </el-table-column>
+    </el-table>
+    <!-- 分页组件 -->
+    <el-pagination
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      layout="total, sizes, prev, pager, next, jumper"
+      :page-sizes="[10, 20, 50, 100]"
+      :current-page="current"
+      :page-size="size"
+      :total="total"
+    >
+    </el-pagination>
+  </div>
+</template>
+      
+  <script>
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+export default {
+  name: "VenueMissHandle",
+  data() {
+    return {
+      searchForm: {},
+      tableData: [],
+      venueTypeList: [],
+      current: 1,
+      size: 10,
+      total: 0,
+      stateMap: {
+        0: { text: "待审核", type: "info" },
+        1: { text: "已通过", type: "success" },
+        2: { text: "已驳回", type: "danger" },
+        3: { text: "已使用", type: "success" },
+        4: { text: "失约未使用", type: "danger" },
+        5: { text: "已取消", type: "danger" },
+      },
+    };
+  },
+  created() {
+    this.getOrderList();
+    this.getVenueType();
+  },
+  filters: {
+    dateFormat(value, formatString = "yyyy-MM-dd") {
+      if (!value) return "";
+      return format(new Date(value), formatString);
+    },
+  },
+  methods: {
+    handleSizeChange(val) {
+      console.log(`每页 ${val} 条`);
+      this.size = val;
+      this.getOrderList();
+    },
+    handleCurrentChange(val) {
+      console.log(`当前页: ${val}`);
+      this.current = val;
+      this.getOrderList();
+    },
+
+    resetSearch() {
+      this.searchForm = {};
+      this.getOrderList();
+    },
+
+    getOrderList() {
+      this.$axios
+        .get("/venue/order/list", {
+          params: {
+            venueType: this.searchForm.venueType,
+            orderState: 4,
+            current: this.current,
+            size: this.size,
+          },
+        })
+        .then((res) => {
+          this.tableData = res.data.data.records;
+          this.size = res.data.data.size;
+          this.current = res.data.data.current;
+          this.total = res.data.data.total;
+        });
+    },
+    getVenueType() {
+      this.$axios.get("/venue/info/listVenueType").then((res) => {
+        this.venueTypeList = res.data.data;
+      });
+    },
+    passOrder(orderId) {
+      let params = {
+        orderId: orderId,
+        orderState: 1,
+      };
+      this.$axios.post("/venue/order/update", params).then((res) => {
+        this.$notify({
+          title: "成功",
+          message: "恭喜你，操作成功",
+          type: "success",
+        });
+        this.getOrderList();
+      });
+    },
+    
+  },
+};
+</script>
+      
+      <style scoped>
+.el-pagination {
+  float: right;
+  margin-top: 22px;
+}
+</style>
